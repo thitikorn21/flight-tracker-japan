@@ -7,6 +7,14 @@ LINE_MULTICAST_URL = "https://api.line.me/v2/bot/message/multicast"
 LINE_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_USER_IDS = os.getenv("LINE_USER_ID", "")
 
+# กำหนดเมืองเป้าหมายในญี่ปุ่น (บินตรงจาก BKK / DMK)
+DESTINATIONS = {
+    "NGO": {"name": "Nagoya", "icon": "🗾", "color": "#1DB446"},
+    "KIX": {"name": "Osaka", "icon": "🏯", "color": "#FF9800"},
+    "NRT": {"name": "Tokyo", "icon": "🗼", "color": "#2196F3"},
+    "FUK": {"name": "Fukuoka", "icon": "🍜", "color": "#9C27B0"},
+}
+
 
 def get_target_date_pairs() -> List[Dict[str, Any]]:
     """สร้างช่วงวันเดินทาง พ.ย. - ธ.ค. 2026 (7-8 วัน)"""
@@ -30,70 +38,133 @@ def get_target_date_pairs() -> List[Dict[str, Any]]:
     return date_pairs
 
 
-def fetch_best_deals() -> List[Dict[str, Any]]:
-    """Mock/Real Flight Offers (Direct Flight Only)"""
-    return [
-        {
-            "airline": "Thai AirAsia X (XJ)",
-            "origin": "DMK",
-            "depart": "2026-11-10",
-            "return": "2026-11-17",
-            "total_days": 8,
-            "net_days": 6,
-            "price": 12450,
-        },
-        {
-            "airline": "Thai AirAsia X (XJ)",
-            "origin": "DMK",
-            "depart": "2026-12-01",
-            "return": "2026-12-08",
-            "total_days": 8,
-            "net_days": 6,
-            "price": 13200,
-        },
-        {
-            "airline": "Thai Airways (TG)",
-            "origin": "BKK",
-            "depart": "2026-11-24",
-            "return": "2026-11-30",
-            "total_days": 7,
-            "net_days": 5,
-            "price": 21800,
-        },
-    ]
+def fetch_multi_city_deals() -> Dict[str, List[Dict[str, Any]]]:
+    """Mock/Real Flight Offers แบ่งตามปลายทาง (Direct Flight Only)"""
+    return {
+        "NGO": [
+            {
+                "airline": "Thai AirAsia X",
+                "origin": "DMK",
+                "dest": "NGO",
+                "depart": "2026-11-10",
+                "return": "2026-11-17",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 12450,
+            },
+            {
+                "airline": "Thai Airways",
+                "origin": "BKK",
+                "dest": "NGO",
+                "depart": "2026-11-24",
+                "return": "2026-11-30",
+                "total_days": 7,
+                "net_days": 5,
+                "price": 21800,
+            },
+        ],
+        "KIX": [
+            {
+                "airline": "Peach Aviation",
+                "origin": "BKK",
+                "dest": "KIX",
+                "depart": "2026-11-12",
+                "return": "2026-11-19",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 11900,
+            },
+            {
+                "airline": "Thai AirAsia X",
+                "origin": "DMK",
+                "dest": "KIX",
+                "depart": "2026-12-02",
+                "return": "2026-12-09",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 13500,
+            },
+        ],
+        "NRT": [
+            {
+                "airline": "Thai AirAsia X",
+                "origin": "DMK",
+                "dest": "NRT",
+                "depart": "2026-11-15",
+                "return": "2026-11-22",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 13800,
+            },
+            {
+                "airline": "ZIPAIR",
+                "origin": "BKK",
+                "dest": "NRT",
+                "depart": "2026-12-05",
+                "return": "2026-12-12",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 14200,
+            },
+        ],
+        "FUK": [
+            {
+                "airline": "Thai Vietjet",
+                "origin": "BKK",
+                "dest": "FUK",
+                "depart": "2026-11-18",
+                "return": "2026-11-25",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 9800,
+            },
+            {
+                "airline": "Thai AirAsia",
+                "origin": "DMK",
+                "dest": "FUK",
+                "depart": "2026-12-08",
+                "return": "2026-12-15",
+                "total_days": 8,
+                "net_days": 6,
+                "price": 10500,
+            },
+        ],
+    }
 
 
-def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
-    now_bkk = (datetime.utcnow() + timedelta(hours=7)).strftime(
-        "%d/%m/%Y %H:%M"
-    )
+def create_city_bubble(
+    dest_code: str,
+    city_info: Dict[str, str],
+    deals: List[Dict[str, Any]],
+    timestamp: str,
+) -> Dict[str, Any]:
+    """สร้าง Bubble สำหรับ 1 เมือง"""
+    best_price = min([d["price"] for d in deals]) if deals else 0
 
     contents: List[Dict[str, Any]] = [
         {
             "type": "text",
-            "text": "✈️ NGO DIRECT FLIGHT DEALS",
+            "text": f"{city_info['icon']} {city_info['name'].upper()} ({dest_code})",
             "weight": "bold",
-            "size": "md",
-            "color": "#1DB446",
+            "size": "lg",
+            "color": city_info["color"],
         },
         {
             "type": "text",
-            "text": f"BKK/DMK ➔ NGO | อัปเดต {now_bkk}",
+            "text": f"เริ่มต้น ฿{best_price:,} • บินตรง 7-8 วัน",
             "size": "xs",
-            "color": "#888888",
+            "color": "#666666",
             "margin": "xs",
         },
         {"type": "separator", "margin": "md"},
     ]
 
-    for d in deals[:5]:
-        # 1. สร้าง Deep Link สำหรับคู่วันเดินทางและสนามบินต้นทาง
+    for d in deals[:3]:
         booking_url = (
-            f"https://www.google.com/travel/flights?q=Flights%20to%20NGO%20"
+            f"https://www.google.com/travel/flights?q=Flights%20to%20{d['dest']}%20"
             f"from%20{d['origin']}%20on%20{d['depart']}%20through%20{d['return']}%20nonstop"
         )
 
-        # 2. เพิ่ม action ระดับ box เพื่อให้แตะการ์ดแล้วเปิดลิงก์ทันที
         item_box = {
             "type": "box",
             "layout": "vertical",
@@ -119,7 +190,7 @@ def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
                         {
                             "type": "text",
                             "text": f"{d['airline']}",
-                            "size": "xs",
+                            "size": "xxs",
                             "align": "end",
                             "color": "#555555",
                         },
@@ -137,16 +208,16 @@ def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "contents": [
                         {
                             "type": "text",
-                            "text": f"⏳ รวม {d['total_days']} วัน (เที่ยวจริง ~{d['net_days']} วัน) | {d['origin']} ➔ NGO",
+                            "text": f"⏳ {d['total_days']} วัน (เที่ยว ~{d['net_days']} วัน) | {d['origin']}",
                             "size": "xxs",
                             "color": "#777777",
                             "flex": 4,
                         },
                         {
                             "type": "text",
-                            "text": "กดดูตั๋ว ➔",
+                            "text": "ดูตั๋ว ➔",
                             "size": "xxs",
-                            "color": "#1DB446",
+                            "color": city_info["color"],
                             "align": "end",
                             "weight": "bold",
                             "flex": 2,
@@ -159,16 +230,48 @@ def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
         contents.append(item_box)
 
     return {
-        "type": "flex",
-        "altText": "อัปเดตราคาตั๋วบินตรงไปนาโกย่า (NGO)",
-        "contents": {
-            "type": "bubble",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": contents,
-            },
+        "type": "bubble",
+        "size": "kilo",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": contents,
         },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": f"อัปเดตเมื่อ {timestamp}",
+                    "size": "xxs",
+                    "color": "#AAAAAA",
+                    "align": "center",
+                }
+            ],
+        },
+    }
+
+
+def build_flex_carousel(
+    multi_city_deals: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    now_bkk = (datetime.utcnow() + timedelta(hours=7)).strftime(
+        "%d/%m/%Y %H:%M"
+    )
+    bubbles = []
+
+    for code, info in DESTINATIONS.items():
+        deals = multi_city_deals.get(code, [])
+        if deals:
+            sorted_deals = sorted(deals, key=lambda x: x["price"])
+            bubble = create_city_bubble(code, info, sorted_deals, now_bkk)
+            bubbles.append(bubble)
+
+    return {
+        "type": "flex",
+        "altText": "✈️ สรุปเปรียบเทียบราคาตั๋วบินตรงไปญี่ปุ่น (พ.ย. - ธ.ค.)",
+        "contents": {"type": "carousel", "contents": bubbles},
     }
 
 
@@ -176,17 +279,13 @@ def send_line_push(flex_message: Dict[str, Any]) -> None:
     if not LINE_TOKEN or not LINE_USER_IDS:
         raise ValueError("Missing LINE_CHANNEL_ACCESS_TOKEN or LINE_USER_ID")
 
-    # แยก User IDs ด้วย comma และตัดช่องว่างออก
     recipient_list = [
         uid.strip() for uid in LINE_USER_IDS.split(",") if uid.strip()
     ]
-
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {LINE_TOKEN}",
     }
-    
-    # Multicast payload รับ 'to' เป็น Array ของ User ID ได้สูงสุด 500 คน
     payload = {"to": recipient_list, "messages": [flex_message]}
 
     res = requests.post(
@@ -196,7 +295,6 @@ def send_line_push(flex_message: Dict[str, Any]) -> None:
 
 
 if __name__ == "__main__":
-    deals = fetch_best_deals()
-    deals_sorted = sorted(deals, key=lambda x: x["price"])
-    message = build_flex_bubble(deals_sorted)
+    multi_city_deals = fetch_multi_city_deals()
+    message = build_flex_carousel(multi_city_deals)
     send_line_push(message)
