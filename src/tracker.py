@@ -68,7 +68,7 @@ def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
         "%d/%m/%Y %H:%M"
     )
 
-    contents = [
+    contents: List[Dict[str, Any]] = [
         {
             "type": "text",
             "text": "✈️ NGO DIRECT FLIGHT DEALS",
@@ -87,49 +87,76 @@ def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
     ]
 
     for d in deals[:5]:
-        contents.append(
-            {
-                "type": "box",
-                "layout": "vertical",
-                "margin": "md",
-                "spacing": "xs",
-                "contents": [
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": [
-                            {
-                                "type": "text",
-                                "text": f"฿{d['price']:,}",
-                                "weight": "bold",
-                                "size": "md",
-                                "color": "#E53935",
-                            },
-                            {
-                                "type": "text",
-                                "text": f"{d['airline']}",
-                                "size": "xs",
-                                "align": "end",
-                                "color": "#555555",
-                            },
-                        ],
-                    },
-                    {
-                        "type": "text",
-                        "text": f"📅 {d['depart']} ถึง {d['return']}",
-                        "size": "xs",
-                        "color": "#333333",
-                    },
-                    {
-                        "type": "text",
-                        "text": f"⏳ รวม {d['total_days']} วัน (เที่ยวจริง ~{d['net_days']} วัน) | {d['origin']} ➔ NGO",
-                        "size": "xxs",
-                        "color": "#777777",
-                    },
-                    {"type": "separator", "margin": "sm"},
-                ],
-            }
+        # 1. สร้าง Deep Link สำหรับคู่วันเดินทางและสนามบินต้นทาง
+        booking_url = (
+            f"https://www.google.com/travel/flights?q=Flights%20to%20NGO%20"
+            f"from%20{d['origin']}%20on%20{d['depart']}%20through%20{d['return']}%20nonstop"
         )
+
+        # 2. เพิ่ม action ระดับ box เพื่อให้แตะการ์ดแล้วเปิดลิงก์ทันที
+        item_box = {
+            "type": "box",
+            "layout": "vertical",
+            "margin": "md",
+            "spacing": "xs",
+            "action": {
+                "type": "uri",
+                "label": "View Flight",
+                "uri": booking_url,
+            },
+            "contents": [
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": f"฿{d['price']:,}",
+                            "weight": "bold",
+                            "size": "md",
+                            "color": "#E53935",
+                        },
+                        {
+                            "type": "text",
+                            "text": f"{d['airline']}",
+                            "size": "xs",
+                            "align": "end",
+                            "color": "#555555",
+                        },
+                    ],
+                },
+                {
+                    "type": "text",
+                    "text": f"📅 {d['depart']} ถึง {d['return']}",
+                    "size": "xs",
+                    "color": "#333333",
+                },
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": f"⏳ รวม {d['total_days']} วัน (เที่ยวจริง ~{d['net_days']} วัน) | {d['origin']} ➔ NGO",
+                            "size": "xxs",
+                            "color": "#777777",
+                            "flex": 4,
+                        },
+                        {
+                            "type": "text",
+                            "text": "กดดูตั๋ว ➔",
+                            "size": "xxs",
+                            "color": "#1DB446",
+                            "align": "end",
+                            "weight": "bold",
+                            "flex": 2,
+                        },
+                    ],
+                },
+                {"type": "separator", "margin": "sm"},
+            ],
+        }
+        contents.append(item_box)
 
     return {
         "type": "flex",
