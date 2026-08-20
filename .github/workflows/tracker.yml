@@ -1,0 +1,31 @@
+name: Flight Tracker Cron
+
+on:
+  schedule:
+    # รันเวลา 08:00, 13:00, 17:00, 20:00, 23:55 (ICT / UTC+7)
+    - cron: '0 1,6,10,13 * * *'
+    - cron: '55 16 * * *'
+  workflow_dispatch:
+
+jobs:
+  track-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests
+
+      - name: Execute Pipeline
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+        run: |
+          python src/tracker.py
