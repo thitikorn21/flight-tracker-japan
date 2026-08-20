@@ -3,9 +3,9 @@ import os
 from typing import Any, Dict, List
 import requests
 
-LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
+LINE_MULTICAST_URL = "https://api.line.me/v2/bot/message/multicast"
 LINE_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
-LINE_USER_ID = os.getenv("LINE_USER_ID")
+LINE_USER_IDS = os.getenv("LINE_USER_ID", "")
 
 
 def get_target_date_pairs() -> List[Dict[str, Any]]:
@@ -173,17 +173,24 @@ def build_flex_bubble(deals: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def send_line_push(flex_message: Dict[str, Any]) -> None:
-    if not LINE_TOKEN or not LINE_USER_ID:
+    if not LINE_TOKEN or not LINE_USER_IDS:
         raise ValueError("Missing LINE_CHANNEL_ACCESS_TOKEN or LINE_USER_ID")
+
+    # แยก User IDs ด้วย comma และตัดช่องว่างออก
+    recipient_list = [
+        uid.strip() for uid in LINE_USER_IDS.split(",") if uid.strip()
+    ]
 
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {LINE_TOKEN}",
     }
-    payload = {"to": LINE_USER_ID, "messages": [flex_message]}
+    
+    # Multicast payload รับ 'to' เป็น Array ของ User ID ได้สูงสุด 500 คน
+    payload = {"to": recipient_list, "messages": [flex_message]}
 
     res = requests.post(
-        LINE_PUSH_URL, headers=headers, json=payload, timeout=10
+        LINE_MULTICAST_URL, headers=headers, json=payload, timeout=10
     )
     res.raise_for_status()
 
